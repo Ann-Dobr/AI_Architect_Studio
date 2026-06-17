@@ -21,7 +21,8 @@ n8n-based tool for generating architecture and business process diagrams from te
 
 ## 📊 Architecture
 
-*(add workflow screenshot here)*
+<img width="1130" height="826" alt="image" src="https://github.com/user-attachments/assets/1e03b3a4-8a35-410f-a84d-388b11cdd7d2" />
+
 
 ## ⚙️ Key Features
 
@@ -33,7 +34,7 @@ n8n-based tool for generating architecture and business process diagrams from te
 
 ## 📁 Files
 
-- [`AI_Architect_Studio_v3_final.json`](./AI_Architect_Studio_v3_final.json) — n8n workflow export (import directly into your n8n instance)
+- [`download_workflow.json`](download_workflow.json) — n8n workflow export (import directly into your n8n instance)
 
 ## ⚙️ Setup Requirements
 
