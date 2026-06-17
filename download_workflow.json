@@ -1,0 +1,477 @@
+{
+  "name": "AI Architect Studio",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Тип диаграммы: {{ $json.query.diagramType }}\nОписание процесса: {{ $json.query.prompt }}",
+        "options": {
+          "systemMessage": "Ты — ведущий системный и бизнес-архитектор. Твоя задача — генерировать строго валидный код для визуализации схем на основе параметров diagramType и prompt.\n\nПРАВИЛА ДЛЯ РЕЖИМА diagramType = BPMN:\n1. Твой ответ должен содержать ТОЛЬКО валидный XML-код в стандарте BPMN 2.0. Оборачивай его в маркдаун-блок ```xml ... \n```.\n2. Всегда прорисовывай пулы (collaboration) и дорожки (lane).\n3. КРИТИЧЕСКИ ВАЖНО: Если в процессе участвуют разные роли (например, Клиент и Бариста), элементы внутри их дорожек ОБЯЗАТЕЛЬНО должны быть связаны между собой сквозными стрелками! Если присутствуют разные дорожки или участники,\nОБЯЗАТЕЛЬНО создавай хотя бы один\n<bpmn:messageFlow>\nмежду элементами разных участников.\nСхема считается невалидной,\nесли между участниками отсутствуют messageFlow.Схема не должна состоять из разорванных кусков!\n4. Схема ОБЯЗАТЕЛЬНО должна содержать блок <bpmndi:BPMNDiagram> со всеми координатами (bounds, waypoints). Координаты не должны накладываться.\n\nКРИТИЧЕСКИ ВАЖНО: Схема ОБЯЗАТЕЛЬНО должна содержать\n<bpmn:collaboration> с <bpmn:messageFlow> между элементами\nразных участников. Схема без messageFlow считается\nневалидной и не будет принята.\n\nПРАВИЛА ДЛЯ ОСТАЛЬНЫХ РЕЖИМОВ (Сгенерируй чистый код Mermaid.js внутри блока ```mermaid ... ```):\n\nСтрого следуй первому ключевому слову в зависимости от diagramType:\n- Если diagramType = \"Flowchart\", код должен начинаться строго с: graph TD\n- Если diagramType = \"Sequence\", код должен начинаться строго с: sequenceDiagram\n- Если diagramType = \"ER-Diagram\", код должен начинаться строго с: erDiagram\n- Если diagramType = \"State\", код должен начинаться строго с: stateDiagram-v2\n- Если diagramType = \"Use-Case\", код должен начинаться строго с: graph LR\n  ЗАПРЕЩЕНО: actor, usecase, rectangle, boundary, flowchart-логика (шаги по порядку)\n  ЛОГИКА: определи всех акторов из промпта, затем определи прецеденты (что делает КАЖДЫЙ актор).\n  Каждый прецедент должен быть привязан к конкретному актору — тому, кто его выполняет.\n  Акторы — овалы: A1([Имя актора])\n  Прецеденты — скруглённые прямоугольники: UC1(Название действия)\n  Связи: Актор --> Прецедент (только от актора к его прецедентам, не между прецедентами)\n  Структура:\n  graph LR\n    A1([Актор1])\n    A2([Актор2])\n    UC1(Прецедент актора1)\n    UC2(Прецедент актора1)\n    UC3(Прецедент актора2)\n    UC4(Прецедент актора2)\n    A1 --> UC1\n    A1 --> UC2\n    A2 --> UC3\n    A2 --> UC4\n- Если diagramType = \"C4-Context\", код должен начинаться строго с: graph TD\n  ЗАПРЕЩЕНО: C4-Context, Person(), System(), Container() — это не Mermaid синтаксис\n  ЛОГИКА: нарисуй контекстную диаграмму — центральная система, внешние акторы и системы вокруг неё, стрелки показывают взаимодействие с подписями.\n  Центральная система — прямоугольник с двойной границей: SYS[[\"Название системы\"]]\n  Внешние пользователи — овалы: U1([Имя пользователя])\n  Внешние системы — прямоугольники: EXT1[Внешняя система]\n  Связи с подписями: U1 -->|Действие| SYS\n  Структура:\n  graph TD\n    U1([Актор1])\n    U2([Актор2])\n    SYS[[\"Центральная система\"]]\n    EXT1[Внешняя система]\n    U1 -->|Действие| SYS\n    SYS -->|Ответ| U1\n    SYS -->|Запрос| EXT1\n\nЗАПРЕЩЕНО путать типы схем! Синтаксис первой строки должен строго соответствовать выбранному типу diagramType.\n\nОБЩЕЕ КРИТИЧЕСКОЕ ПРАВИЛО: Никакого лишнего текста до или после блоков кода. Только один маркдаун-блок с кодом."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -96,
+        48
+      ],
+      "id": "44365997-84ce-4c87-a9c3-553b3119589b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $execution.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        48,
+        240
+      ],
+      "id": "7e2d080b-4bcc-4535-be80-f088c65ff141",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"output\": \"{{ $json.output }}\"}",
+        "options": {
+          "responseCode": 200,
+          "enableStreaming": false
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        272,
+        176
+      ],
+      "id": "ced5bfdc-e3bf-4109-bc6c-6841b7195f6b",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "path": "studio",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -528,
+        256
+      ],
+      "id": "3a89cae8-aa68-4a7e-85fa-584f6c449a33",
+      "name": "Webhook1",
+      "webhookId": "07d47f01-16ad-42de-90a7-77ffd1d5b6d7"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "maxTokens": 4000,
+          "responseFormat": "text",
+          "temperature": 0,
+          "timeout": 60000,
+          "maxRetries": 2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        240
+      ],
+      "id": "16c921a2-ff6b-46c2-b123-49685d29dcc1",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "WmJs4ZBzwRj3Mk3N",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "505ffc31-9766-4856-b5c2-7ba883b466d5",
+              "leftValue": "={{ $json.query.diagramType }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -352,
+        256
+      ],
+      "id": "1db7bca8-ab96-4c24-bae6-5e885d1de4a5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "transcribe",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "7b5d17d5-3de2-4554-9a19-b215229af192"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "0"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2671009e-2ba4-44fb-ae42-938d44b1c0a9",
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "analyze",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "1"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        464
+      ],
+      "id": "7a9da1af-5b1c-4616-97e2-50430cec35a0",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        384,
+        336
+      ],
+      "id": "8f58edfe-17a6-4fba-a42f-7219925b6b73",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.choices[0].message.content }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        288,
+        528
+      ],
+      "id": "a924091a-49ab-4f6e-aaa2-efcb31bcbc5f",
+      "name": "Respond to Webhook3"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "studio",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -432,
+        480
+      ],
+      "id": "08a890eb-14b8-4689-b3b2-de3c470c0cb9",
+      "name": "Webhook",
+      "webhookId": "ce20aa0c-36b6-4de0-ba01-e2a06bd6d82a"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        144,
+        336
+      ],
+      "id": "2815057f-6760-4761-a047-5c41a1ce218f",
+      "name": "HTTP (Whisper)",
+      "credentials": {
+        "openAiApi": {
+          "id": "WmJs4ZBzwRj3Mk3N",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Извлеки из изображения описание процесса для построения диаграммы. Верни только текст описания, без лишних слов.\"\n      },\n      {\n        \"type\": \"image_url\",\n        \"image_url\": {\n          \"url\": \"data:{{ $json.body.fileMime }};base64,{{ $json.body.fileBase64 }}\"\n        }\n      }\n    ]\n  }]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        96,
+        528
+      ],
+      "id": "6a56acbb-7692-4e8a-94b0-54e2f65d2fa3",
+      "name": "HTTP (Vision)",
+      "credentials": {
+        "openAiApi": {
+          "id": "WmJs4ZBzwRj3Mk3N",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html lang=\"ru\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">\n    <title>AI Architect Studio v2.6</title>\n    <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n    <script src=\"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js\"></script>\n    <script src=\"https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js\"></script>\n    <link rel=\"stylesheet\" href=\"https://unpkg.com/bpmn-js@17.11.1/dist/assets/diagram-js.css\">\n    <link rel=\"stylesheet\" href=\"https://unpkg.com/bpmn-js@17.11.1/dist/assets/bpmn-font/css/bpmn.css\">\n    <script src=\"https://unpkg.com/bpmn-js@17.11.1/dist/bpmn-viewer.production.min.js\"></script>\n<style>\n    ::-webkit-scrollbar { width: 6px; height: 6px; }\n    ::-webkit-scrollbar-track { background: #1e1e2e; }\n    ::-webkit-scrollbar-thumb { background: #313244; border-radius: 3px; }\n    .arc-blur { backdrop-filter: blur(12px); background: rgba(30,30,46,0.7); }\n    html, body { margin: 0; padding: 0; height: 100vh; width: 100vw; overflow: hidden; }\n\n    /* Mermaid */\n    #mermaidOutput { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }\n    #mermaidOutput svg { width: 100% !important; height: 100% !important; max-width: none !important; display: block; }\n\n    /* BPMN */\n    .bjs-powered-by { display: none !important; }\n    #bpmnContainer { background: #11111b !important; }\n    #bpmnContainer .djs-container, #bpmnContainer svg { background: #11111b !important; }\n    #bpmnContainer .djs-visual > rect,\n    #bpmnContainer .djs-visual > circle,\n    #bpmnContainer .djs-visual > ellipse,\n    #bpmnContainer .djs-visual > polygon,\n    #bpmnContainer .djs-visual > path { fill: #1e1e2e !important; stroke: #89b4fa !important; stroke-width: 1.5px !important; }\n    #bpmnContainer .djs-visual circle { fill: #313244 !important; stroke: #a6e3a1 !important; }\n    #bpmnContainer .djs-connection .djs-visual path { stroke: #cdd6f4 !important; stroke-width: 1.5px !important; fill: none !important; }\n    #bpmnContainer marker path { fill: #cdd6f4 !important; stroke: #cdd6f4 !important; }\n    #bpmnContainer .djs-label, #bpmnContainer text { fill: #cdd6f4 !important; font-size: 11px !important; }\n    #bpmnContainer .djs-shape.djs-element.bpmn-pool .djs-visual > rect,\n    #bpmnContainer .djs-shape.djs-element.bpmn-lane .djs-visual > rect { fill: #181825 !important; stroke: #585b70 !important; }\n    #bpmnContainer .djs-connection[data-element-id*=\"MessageFlow\"] .djs-visual path,\n    #bpmnContainer .djs-connection[data-element-id*=\"message\"] .djs-visual path { stroke: #f38ba8 !important; stroke-dasharray: 6,3 !important; }\n    #bpmnContainer .djs-connection[data-element-id*=\"MessageFlow\"] marker path,\n    #bpmnContainer .djs-connection[data-element-id*=\"message\"] marker path { fill: #f38ba8 !important; stroke: #f38ba8 !important; }\n\n    /* ── Кнопки микрофона и скрепки ── */\n    .input-action-btn {\n        display: flex; align-items: center; justify-content: center;\n        width: 28px; height: 28px; border-radius: 6px; border: none;\n        background: #313244; color: #cdd6f4; cursor: pointer;\n        transition: background 0.15s, color 0.15s; flex-shrink: 0;\n    }\n    .input-action-btn:hover { background: #45475a; }\n    .input-action-btn.active { background: #f38ba8; color: #11111b; }\n    .input-action-btn svg { width: 14px; height: 14px; }\n\n    /* Пульсация микрофона при записи */\n    @keyframes pulse-ring {\n        0%   { box-shadow: 0 0 0 0 rgba(243,139,168,0.6); }\n        70%  { box-shadow: 0 0 0 7px rgba(243,139,168,0); }\n        100% { box-shadow: 0 0 0 0 rgba(243,139,168,0); }\n    }\n    .mic-recording { animation: pulse-ring 1.2s ease-out infinite; background: #f38ba8 !important; color: #11111b !important; }\n\n    /* Таймер записи */\n    #recTimer { font-variant-numeric: tabular-nums; }\n\n    /* Drag-and-drop зона */\n    #dropOverlay {\n        display: none; position: absolute; inset: 0; border-radius: 8px;\n        background: rgba(203,166,247,0.08); border: 2px dashed #cba6f7;\n        align-items: center; justify-content: center;\n        color: #cba6f7; font-size: 12px; font-weight: 600; z-index: 10;\n        pointer-events: none;\n    }\n    #dropOverlay.visible { display: flex; }\n\n    /* Превью прикреплённого файла */\n    #filePreview {\n        display: none; align-items: center; gap: 6px;\n        background: #313244; border-radius: 6px; padding: 5px 8px;\n        font-size: 11px; color: #cdd6f4;\n    }\n    #filePreview.visible { display: flex; }\n    #filePreview button { background: none; border: none; color: #f38ba8; cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }\n</style>\n</head>\n<body class=\"bg-[#11111b] text-[#cdd6f4] font-sans h-screen w-screen flex overflow-hidden\" onwheel=\"preventGlobalZoom(event)\">\n\n<!-- ЛЕВАЯ ПАНЕЛЬ -->\n<div class=\"w-1/3 min-w-[380px] h-screen bg-[#1e1e2e] border-r border-[#313244] flex flex-col p-6 space-y-5 overflow-y-auto z-20\">\n    <div>\n        <h1 class=\"text-xl font-bold tracking-tight text-[#cba6f7]\">AI Architect Studio</h1>\n        <p class=\"text-xs text-[#a6adc8] mt-1\">Профессиональное проектирование процессов</p>\n    </div>\n    <div class=\"flex flex-col space-y-2\">\n        <label class=\"text-xs font-semibold uppercase tracking-wider text-[#89b4fa]\">Тип диаграммы</label>\n        <select id=\"diagramType\" onchange=\"toggleDiagramTypeMode()\" class=\"w-full bg-[#11111b] border border-[#45475a] rounded-lg p-2.5 text-sm text-[#cdd6f4] focus:outline-none focus:border-[#cba6f7]\">\n            <option value=\"BPMN\">BPMN 2.0 (Бизнес-процессы)</option>\n            <option value=\"Flowchart\">Flowchart (Блок-схема)</option>\n            <option value=\"Sequence\">Sequence (Диаграмма последовательности)</option>\n            <option value=\"ER-Diagram\">ER-Diagram (Базы данных)</option>\n            <option value=\"State\">State (Состояния объекта)</option>\n            <option value=\"Use-Case\">Use Case (Прецеденты)</option>\n            <option value=\"C4-Context\">C4 Context (Архитектура)</option>\n        </select>\n    </div>\n\n    <!-- ПРОМПТ + кнопки -->\n    <div class=\"flex-1 flex flex-col space-y-2\">\n        <div class=\"flex items-center justify-between\">\n            <label class=\"text-xs font-semibold uppercase tracking-wider text-[#89b4fa]\">Описание процесса (Промпт)</label>\n            <div class=\"flex items-center gap-1.5\">\n                <!-- Таймер (виден только при записи) -->\n                <span id=\"recTimer\" class=\"hidden text-[10px] text-[#f38ba8] font-mono\">0:00</span>\n                <!-- Скрепка -->\n                <button id=\"attachBtn\" class=\"input-action-btn\" title=\"Прикрепить изображение процесса (PNG, JPG)\" onclick=\"attachClick()\">\n                    <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n                        <path d=\"M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48\"/>\n                    </svg>\n                </button>\n                <!-- Микрофон -->\n                <button id=\"micBtn\" class=\"input-action-btn\" title=\"Голосовой ввод\" onclick=\"toggleRecording()\">\n                    <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n                        <path d=\"M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z\"/>\n                        <path d=\"M19 10v2a7 7 0 0 1-14 0v-2\"/>\n                        <line x1=\"12\" y1=\"19\" x2=\"12\" y2=\"23\"/>\n                        <line x1=\"8\" y1=\"23\" x2=\"16\" y2=\"23\"/>\n                    </svg>\n                </button>\n            </div>\n        </div>\n\n        <!-- Превью файла -->\n        <div id=\"filePreview\">\n            <span id=\"fileName\" class=\"truncate flex-1\"></span>\n            <button onclick=\"clearAttachment()\" title=\"Удалить файл\">✕</button>\n        </div>\n\n        <!-- Textarea с drag-and-drop -->\n        <div class=\"relative flex-1\">\n            <textarea id=\"promptInput\"\n                placeholder=\"Опиши шаги процесса, участников и ветвления сценария...\"\n                class=\"flex-1 w-full h-full bg-[#11111b] border border-[#45475a] rounded-lg p-3 text-sm text-[#cdd6f4] focus:outline-none focus:border-[#cba6f7] resize-none min-h-[160px]\"\n                ondragover=\"handleDragOver(event)\"\n                ondragleave=\"handleDragLeave(event)\"\n                ondrop=\"handleDrop(event)\">\n            </textarea>\n            <div id=\"dropOverlay\">Перетащите файл сюда</div>\n        </div>\n\n        <!-- Скрытый input для выбора файла -->\n        <input type=\"file\" id=\"fileInput\" accept=\".png,.jpg,.jpeg\" style=\"display:none\" onchange=\"handleFileSelect(event)\">\n    </div>\n\n    <button id=\"generateBtn\" onclick=\"generateSchema()\" class=\"w-full bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] font-bold py-3 px-4 rounded-lg transition-all duration-200 cursor-pointer shadow-lg shadow-[#cba6f7]/10\">\n        Сгенерировать схему →\n    </button>\n    <hr class=\"border-[#45475a]\">\n    <div class=\"h-1/4 flex flex-col space-y-2\">\n        <div class=\"flex justify-between items-center\">\n            <label id=\"codeLabel\" class=\"text-xs font-semibold uppercase tracking-wider text-[#f38ba8]\">Код Mermaid (Можно править!)</label>\n            <span id=\"liveBadge\" class=\"text-[10px] text-[#a6adc8] bg-[#313244] px-2 py-0.5 rounded\">Live</span>\n        </div>\n        <textarea id=\"mermaidCode\" oninput=\"updateDiagramLive()\" class=\"flex-1 w-full bg-[#11111b] border border-[#45475a] rounded-lg p-3 font-mono text-xs text-[#a6e3a1] focus:outline-none focus:border-[#f38ba8] resize-none\" placeholder=\"Здесь появится рабочий код...\"></textarea>\n    </div>\n</div>\n\n<!-- ПРАВАЯ ПАНЕЛЬ -->\n<div class=\"flex-1 h-screen bg-[#11111b] flex flex-col relative overflow-hidden z-10\">\n    <div class=\"h-12 border-b border-[#313244] flex items-center px-6 justify-between bg-[#1e1e2e]/50 arc-blur z-50\">\n        <div class=\"flex items-center space-x-2\">\n            <div id=\"statusIndicator\" class=\"w-2.5 h-2.5 rounded-full bg-[#a6e3a1]\"></div>\n            <span id=\"statusText\" class=\"text-xs text-[#a6adc8]\">Готов к работе</span>\n        </div>\n        <div class=\"flex items-center space-x-1.5\">\n            <button onclick=\"exportAsSVG()\" class=\"text-[11px] bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] py-1 px-2.5 rounded transition-all cursor-pointer\">SVG</button>\n            <button onclick=\"exportAsPNG()\" class=\"text-[11px] bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] py-1 px-2.5 rounded transition-all cursor-pointer\">PNG</button>\n            <button id=\"btnHtmlEx\" onclick=\"exportAsHTML()\" class=\"text-[11px] bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] py-1 px-2.5 rounded transition-all cursor-pointer\">HTML</button>\n            <button id=\"btnCodeEx\" onclick=\"exportAsCode()\" class=\"text-[11px] bg-[#45475a] hover:bg-[#585b70] text-[#a6e3a1] py-1 px-2.5 rounded transition-all font-mono cursor-pointer\">.MD</button>\n        </div>\n    </div>\n    <div class=\"flex-1 w-full h-full relative bg-[radial-gradient(#313244_1px,transparent_1px)] [background-size:16px_16px] overflow-hidden\">\n        <div id=\"mermaidContainer\" class=\"absolute inset-0 w-full h-full flex items-center justify-center p-4\">\n            <div id=\"mermaidOutput\"></div>\n        </div>\n        <div id=\"bpmnContainer\" class=\"absolute inset-0 w-full h-full hidden\"></div>\n    </div>\n</div>\n\n<script>\nmermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'monospace' });\n\nlet bpmnViewer  = null;\nlet panZoomInst = null;\nlet currentMode = 'MERMAID';\nlet lastBpmnXml = '';\nlet liveTimer   = null;\n\n// ── Голос ────────────────────────────────────────────────\nlet mediaRecorder = null;\nlet audioChunks   = [];\nlet recTimerInterval = null;\nlet recSeconds    = 0;\n\nfunction toggleRecording() {\n    if (mediaRecorder && mediaRecorder.state === 'recording') {\n        stopRecording();\n    } else {\n        startRecording();\n    }\n}\n\nasync function startRecording() {\n    try {\n        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });\n        mediaRecorder = new MediaRecorder(stream);\n        audioChunks = [];\n\n        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };\n        mediaRecorder.onstop = () => {\n            stream.getTracks().forEach(t => t.stop());\n            sendAudioToWhisper();\n        };\n\n        mediaRecorder.start();\n\n        // UI — включаем пульсацию и таймер\n        const btn = document.getElementById('micBtn');\n        btn.classList.add('mic-recording');\n        const timerEl = document.getElementById('recTimer');\n        timerEl.classList.remove('hidden');\n        recSeconds = 0;\n        timerEl.textContent = '0:00';\n        recTimerInterval = setInterval(() => {\n            recSeconds++;\n            const m = Math.floor(recSeconds / 60);\n            const s = String(recSeconds % 60).padStart(2, '0');\n            timerEl.textContent = `${m}:${s}`;\n        }, 1000);\n\n    } catch (err) {\n        alert('Нет доступа к микрофону: ' + err.message);\n    }\n}\n\nfunction stopRecording() {\n    if (mediaRecorder && mediaRecorder.state === 'recording') {\n        mediaRecorder.stop();\n    }\n    const btn = document.getElementById('micBtn');\n    btn.classList.remove('mic-recording');\n    clearInterval(recTimerInterval);\n    document.getElementById('recTimer').classList.add('hidden');\n}\n\nasync function sendAudioToWhisper() {\n    setStatus('Транскрибация...', '#f9e2af');\n    try {\n        const blob = new Blob(audioChunks, { type: 'audio/webm' });\n        const formData = new FormData();\n        formData.append('action', 'transcribe');\n        formData.append('file', blob, 'voice.webm');\n\n        const baseUrl = window.location.href.split('?')[0].replace(/\\/$/, '');\n        const resp = await fetch(baseUrl, { method: 'POST', body: formData });\n        const text = await resp.text();\n\n        // Вставляем текст в промпт\n        const ta = document.getElementById('promptInput');\n        ta.value = ta.value ? ta.value + ' ' + text.trim() : text.trim();\n        setStatus('Голос распознан ✓', '#a6e3a1');\n    } catch (err) {\n        console.error(err);\n        setStatus('Ошибка транскрибации', '#f38ba8');\n        alert('Ошибка транскрибации: ' + err.message);\n    }\n}\n\n// ── Файлы ────────────────────────────────────────────────\nlet attachedFile = null;\n\nfunction attachClick() {\n    document.getElementById('fileInput').click();\n}\n\nfunction handleFileSelect(e) {\n    const file = e.target.files[0];\n    if (file) setAttachedFile(file);\n    e.target.value = '';\n}\n\nfunction handleDragOver(e) {\n    e.preventDefault();\n    document.getElementById('dropOverlay').classList.add('visible');\n}\n\nfunction handleDragLeave(e) {\n    document.getElementById('dropOverlay').classList.remove('visible');\n}\n\nfunction handleDrop(e) {\n    e.preventDefault();\n    document.getElementById('dropOverlay').classList.remove('visible');\n    const file = e.dataTransfer.files[0];\n    if (file) setAttachedFile(file);\n}\n\nfunction setAttachedFile(file) {\n    const allowed = ['image/png','image/jpeg'];\n    if (!allowed.includes(file.type)) {\n        alert('Поддерживаются: PNG, JPG');\n        return;\n    }\n    attachedFile = file;\n    document.getElementById('fileName').textContent = file.name;\n    document.getElementById('filePreview').classList.add('visible');\n    document.getElementById('attachBtn').classList.add('active');\n}\n\nfunction clearAttachment() {\n    attachedFile = null;\n    document.getElementById('filePreview').classList.remove('visible');\n    document.getElementById('attachBtn').classList.remove('active');\n}\n\nasync function sendFileToAnalyze(file) {\n    setStatus('Анализ документа...', '#f9e2af');\n\n    const base64 = await new Promise((resolve, reject) => {\n        const reader = new FileReader();\n        reader.onload = () => resolve(reader.result.split(',')[1]);\n        reader.onerror = () => reject(new Error('Ошибка чтения файла'));\n        reader.readAsDataURL(file);\n    });\n\n    const baseUrl = window.location.href.split('?')[0].replace(/\\/$/, '');\n    const resp = await fetch(baseUrl, {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({\n            action: 'analyze',\n            fileBase64: base64,\n            fileMime: file.type,\n            fileName: file.name\n        })\n    });\n    if (!resp.ok) throw new Error('Ошибка анализа документа');\n    return await resp.text();\n}\n\nfunction preventGlobalZoom(e) { if (e.ctrlKey || e.metaKey) e.preventDefault(); }\n\n// ── Переключение режима ──────────────────────────────────\nfunction toggleDiagramTypeMode() {\n    const type       = document.getElementById('diagramType').value;\n    const mCode      = document.getElementById('mermaidCode');\n    const cLabel     = document.getElementById('codeLabel');\n    const lBadge     = document.getElementById('liveBadge');\n    const btnHtml    = document.getElementById('btnHtmlEx');\n    const btnCode    = document.getElementById('btnCodeEx');\n    const mContainer = document.getElementById('mermaidContainer');\n    const bContainer = document.getElementById('bpmnContainer');\n\n    if (type === 'BPMN') {\n        currentMode = 'BPMN';\n        mCode.disabled = true;\n        mCode.value = '[XML-код BPMN — скачайте через кнопку BPMN XML]';\n        cLabel.innerText = 'Служебный BPMN XML';\n        lBadge.classList.add('hidden');\n        btnHtml.classList.add('hidden');\n        btnCode.innerText = 'BPMN XML';\n        mContainer.classList.add('hidden');\n        bContainer.classList.remove('hidden');\n    } else {\n        currentMode = 'MERMAID';\n        mCode.disabled = false;\n        cLabel.innerText = 'Код Mermaid (Можно править!)';\n        lBadge.classList.remove('hidden');\n        btnHtml.classList.remove('hidden');\n        btnCode.innerText = '.MD';\n        bContainer.classList.add('hidden');\n        mContainer.classList.remove('hidden');\n    }\n}\n\n// ── Статус ───────────────────────────────────────────────\nfunction setStatus(text, color) {\n    document.getElementById('statusText').innerText = text;\n    document.getElementById('statusIndicator').style.background = color;\n}\n\n// ── Надёжный парсер ответа n8n ───────────────────────────\nfunction extractCode(rawText) {\n    const t = rawText.trim();\n    try {\n        const j = JSON.parse(t);\n        if (j && j.output) return j.output;\n    } catch(e) {}\n    const s = t.indexOf('{');\n    const e = t.lastIndexOf('}');\n    if (s !== -1 && e > s) {\n        try {\n            const j = JSON.parse(t.slice(s, e + 1));\n            if (j && j.output) return j.output;\n        } catch(e2) {}\n    }\n    const rx = /\\\"output\\\"\\s*:\\s*\\\"([\\s\\S]*?)(?<!\\\\)\\\"\\s*[,}]/;\n    const m  = t.match(rx);\n    if (m) {\n        try { return JSON.parse('\"' + m[1] + '\"'); } catch(e3) { return m[1]; }\n    }\n    return t;\n}\n\n// ── Генерация ────────────────────────────────────────────\nasync function generateSchema() {\n    let prompt        = document.getElementById('promptInput').value.trim();\n    const diagramType = document.getElementById('diagramType').value;\n    const btn         = document.getElementById('generateBtn');\n\n    // Если есть прикреплённый файл — сначала анализируем его\n    if (attachedFile) {\n        btn.disabled = true;\n        btn.innerText = 'Анализ файла...';\n        try {\n            const extracted = await sendFileToAnalyze(attachedFile);\n            const clean = extracted.trim();\n            // Добавляем извлечённый текст к промпту (или заменяем если промпт пустой)\n            prompt = prompt ? prompt + '\\n\\n' + clean : clean;\n            document.getElementById('promptInput').value = prompt;\n            clearAttachment();\n            setStatus('Файл проанализирован ✓', '#a6e3a1');\n        } catch(err) {\n            btn.disabled = false;\n            btn.innerText = 'Сгенерировать схему →';\n            setStatus('Ошибка анализа файла', '#f38ba8');\n            alert('Ошибка: ' + err.message);\n            return;\n        }\n    }\n\n    if (!prompt) return alert('Введите промпт.');\n\n    btn.disabled = true;\n    btn.innerText = 'Генерация...';\n    setStatus('Запрос к AI...', '#f9e2af');\n\n    try {\n        const url     = window.location.href.split('?')[0] +\n                        '?diagramType=' + encodeURIComponent(diagramType) +\n                        '&prompt='      + encodeURIComponent(prompt);\n        const resp    = await fetch(url);\n        const rawText = await resp.text();\n        console.log('[RAW]', rawText);\n\n        let code = extractCode(rawText);\n        console.log('[EXTRACTED]', code);\n\n        code = code.replace(/```[\\w-]*\\r?\\n?/g, '').replace(/```/g, '').trim();\n\n        if (diagramType === 'BPMN') {\n            const cuts = ['<?xml', '<bpmn:definitions', '<definitions'].map(c => code.indexOf(c)).filter(i => i >= 0);\n            if (cuts.length) code = code.slice(Math.min(...cuts));\n        }\n\n        console.log('[CLEAN]', code);\n\n        currentMode = (diagramType === 'BPMN') ? 'BPMN' : 'MERMAID';\n        if (currentMode === 'MERMAID') document.getElementById('mermaidCode').value = code;\n\n        setStatus('Рендеринг...', '#89b4fa');\n        await renderData(code, diagramType);\n        setStatus('Готово ✓', '#a6e3a1');\n\n    } catch (err) {\n        console.error(err);\n        setStatus('Ошибка!', '#f38ba8');\n        alert('Ошибка: ' + err.message);\n    } finally {\n        btn.disabled = false;\n        btn.innerText = 'Сгенерировать схему →';\n    }\n}\n\n// ── Рендер ───────────────────────────────────────────────\nasync function renderData(code, diagramType) {\n    if (!diagramType) diagramType = document.getElementById('diagramType').value;\n\n    const mC   = document.getElementById('mermaidContainer');\n    const bC   = document.getElementById('bpmnContainer');\n    let final  = code.trim();\n\n    if (currentMode === 'BPMN') {\n        mC.classList.add('hidden');\n        bC.classList.remove('hidden');\n\n        if (!bpmnViewer) {\n            bpmnViewer = new BpmnJS({ container: '#bpmnContainer' });\n        }\n\n        try {\n            await bpmnViewer.importXML(final);\n            lastBpmnXml = final;\n            bpmnViewer.get('eventBus').fire('canvas.resized');\n            await new Promise(r => setTimeout(r, 80));\n            const canvas = bpmnViewer.get('canvas');\n            canvas.zoom('fit-viewport', 'all');\n\n            const svgEl = bC.querySelector('svg');\n            if (svgEl) {\n                svgEl.style.background = '#11111b';\n                svgEl.style.width  = '100%';\n                svgEl.style.height = '100%';\n            }\n\n            if (!bC._zoomBound) {\n                bC._zoomBound = true;\n                bC.addEventListener('wheel', (e) => {\n                    e.preventDefault();\n                    const step   = e.deltaY < 0 ? 0.1 : -0.1;\n                    const cur    = canvas.zoom();\n                    const next   = Math.min(Math.max(cur + step, 0.1), 10);\n                    canvas.zoom(next);\n                }, { passive: false });\n\n                let dragging = false, startX, startY, startVp;\n                bC.addEventListener('mousedown', (e) => {\n                    if (e.button !== 0) return;\n                    dragging = true;\n                    startX = e.clientX; startY = e.clientY;\n                    startVp = canvas.viewbox();\n                    bC.style.cursor = 'grabbing';\n                });\n                window.addEventListener('mousemove', (e) => {\n                    if (!dragging) return;\n                    const dx = e.clientX - startX;\n                    const dy = e.clientY - startY;\n                    canvas.viewbox({ x: startVp.x - dx / canvas.zoom(), y: startVp.y - dy / canvas.zoom(), width: startVp.width, height: startVp.height });\n                });\n                window.addEventListener('mouseup', () => { dragging = false; bC.style.cursor = 'default'; });\n            }\n\n        } catch (err) {\n            console.error('BPMN error:', err);\n            setStatus('Ошибка BPMN XML', '#f38ba8');\n            alert('Ошибка BPMN XML:\\n\\n' + (err.message || String(err)));\n        }\n        return;\n    }\n\n    bC.classList.add('hidden');\n    mC.classList.remove('hidden');\n\n    const H = {\n        'Flowchart':   ['graph',          'graph TD'],\n        'Sequence':    ['sequenceDiagram','sequenceDiagram'],\n        'ER-Diagram':  ['erDiagram',      'erDiagram'],\n        'State':       ['stateDiagram',   'stateDiagram-v2'],\n        'Use-Case':    ['graph',          'graph TD'],\n        'C4-Context':  ['graph',          'graph TD'],\n    };\n    if (H[diagramType] && !final.startsWith(H[diagramType][0])) {\n        final = H[diagramType][1] + '\\n' + final;\n    }\n\n    if (diagramType === 'Use-Case' || diagramType === 'Flowchart') {\n        final = final.split('\\n').filter(line => {\n            const t = line.trim().toLowerCase();\n            return !t.startsWith('actor ') &&\n                   !t.startsWith('usecase ') &&\n                   !t.startsWith('rectangle ') &&\n                   !t.startsWith('boundary ');\n        }).join('\\n');\n    }\n\n    final = final.replace(/(\\w+)\\[([^\\]\"]+)\\]/g, (_, id, label) =>\n        /[а-яёА-ЯЁ\\s]/.test(label) ? `${id}[\"${label}\"]` : `${id}[${label}]`\n    );\n    final = final.replace(/(\\w+)\\(([^)\"]+)\\)/g, (_, id, label) =>\n        /[а-яёА-ЯЁ\\s]/.test(label) ? `${id}(\"${label}\")` : `${id}(${label})`\n    );\n    final = final.replace(/(\\w+)\\{([^}\"]+)\\}/g, (_, id, label) =>\n        /[а-яёА-ЯЁ\\s]/.test(label) ? `${id}{\"${label}\"}` : `${id}{${label}}`\n    );\n\n    if (panZoomInst) { try { panZoomInst.destroy(); } catch(e) {} panZoomInst = null; }\n\n    mC.innerHTML = '<div id=\"mermaidOutput\" style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;\"></div>';\n    const out = document.getElementById('mermaidOutput');\n    const rid = 'mg-' + Date.now();\n\n    try {\n        const { svg } = await mermaid.render(rid, final);\n        out.innerHTML = svg;\n\n        const svgEl = out.querySelector('svg');\n        if (svgEl) {\n            svgEl.removeAttribute('width');\n            svgEl.removeAttribute('height');\n            svgEl.style.width  = '100%';\n            svgEl.style.height = '100%';\n            svgEl.style.maxWidth = 'none';\n\n            requestAnimationFrame(() => requestAnimationFrame(() => {\n                try {\n                    panZoomInst = svgPanZoom(svgEl, {\n                        zoomEnabled: true,\n                        controlIconsEnabled: true,\n                        fit: true,\n                        center: true,\n                        minZoom: 0.02,\n                        maxZoom: 30,\n                        zoomScaleSensitivity: 0.25,\n                        mouseWheelZoomEnabled: true,\n                        dblClickZoomEnabled: true\n                    });\n                } catch(e) { console.warn('pan-zoom failed:', e); }\n            }));\n        }\n    } catch (err) {\n        console.error('Mermaid error:', err);\n        out.innerHTML = '<div style=\"color:#f38ba8;padding:24px;font-family:monospace;font-size:12px;white-space:pre-wrap;max-width:640px;\"><b>Ошибка рендера Mermaid:</b>\\n\\n' + (err.message || err) + '</div>';\n        setStatus('Ошибка рендера', '#f38ba8');\n    }\n}\n\n// ── Live-редактор ────────────────────────────────────────\nfunction updateDiagramLive() {\n    if (currentMode === 'BPMN') return;\n    clearTimeout(liveTimer);\n    liveTimer = setTimeout(() => renderData(document.getElementById('mermaidCode').value), 700);\n}\n\n// ── Экспорт ──────────────────────────────────────────────\nfunction blobUrl(content, type) {\n    return URL.createObjectURL(new Blob([content], { type }));\n}\nfunction triggerDownload(url, name) {\n    const a = document.createElement('a');\n    a.href = url; a.download = name;\n    document.body.appendChild(a); a.click(); document.body.removeChild(a);\n    setTimeout(() => URL.revokeObjectURL(url), 60000);\n}\n\nfunction exportAsSVG() {\n    if (currentMode === 'BPMN') {\n        if (!bpmnViewer) return alert('Сначала сгенерируйте схему.');\n        bpmnViewer.saveSVG().then(({ svg }) => triggerDownload(blobUrl(svg, 'image/svg+xml'), 'diagram.svg'));\n    } else {\n        const el = document.querySelector('#mermaidContainer svg');\n        if (!el) return alert('Сначала сгенерируйте схему.');\n        triggerDownload(blobUrl(new XMLSerializer().serializeToString(el), 'image/svg+xml'), 'schema.svg');\n    }\n}\n\nfunction exportAsPNG() {\n    const el = document.querySelector('#mermaidContainer svg');\n    if (!el) return alert('PNG доступен только для Mermaid. Сначала сгенерируйте схему.');\n    const url = blobUrl(new XMLSerializer().serializeToString(el), 'image/svg+xml;charset=utf-8');\n    const img = new Image();\n    img.onload = () => {\n        const bbox = el.getBoundingClientRect();\n        const sc   = 2;\n        const cvs  = document.createElement('canvas');\n        cvs.width  = Math.max(bbox.width, 800) * sc;\n        cvs.height = Math.max(bbox.height, 600) * sc;\n        const ctx  = cvs.getContext('2d');\n        ctx.scale(sc, sc);\n        ctx.fillStyle = '#11111b'; ctx.fillRect(0, 0, cvs.width, cvs.height);\n        ctx.drawImage(img, 0, 0);\n        URL.revokeObjectURL(url);\n        triggerDownload(cvs.toDataURL('image/png'), 'schema.png');\n    };\n    img.onerror = () => { URL.revokeObjectURL(url); alert('Ошибка PNG. Используйте SVG.'); };\n    img.src = url;\n}\n\nfunction exportAsHTML() {\n    const code = document.getElementById('mermaidCode').value;\n    const html = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><script src=\"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js\"><\\/script><style>body{background:#11111b;display:flex;justify-content:center;padding:40px;}<\\/style><\\/head><body><pre class=\"mermaid\">' + code + '<\\/pre><script>mermaid.initialize({startOnLoad:true,theme:\"dark\"});<\\/script><\\/body><\\/html>';\n    triggerDownload(blobUrl(html, 'text/html'), 'schema.html');\n}\n\nfunction exportAsCode() {\n    if (currentMode === 'BPMN') {\n        if (!lastBpmnXml) return alert('Сначала сгенерируйте BPMN схему.');\n        triggerDownload(blobUrl(lastBpmnXml, 'application/xml'), 'process.bpmn');\n    } else {\n        triggerDownload(blobUrl(document.getElementById('mermaidCode').value, 'text/plain'), 'schema.md');\n    }\n}\n\n// ── Старт ────────────────────────────────────────────────\nwindow.onload = () => {\n    toggleDiagramTypeMode();\n    const startCode = 'graph TD\\n    A(🚀 Старт) --> B[Заполните промпт слева]\\n    B --> C{Выберите тип диаграммы}\\n    C -->|BPMN| D[Бизнес-процесс с пулами]\\n    C -->|Mermaid| E[Flowchart / Sequence / ER...]\\n    D --> F([Нажмите Сгенерировать])\\n    E --> F';\n    document.getElementById('mermaidCode').value = startCode;\n    currentMode = 'MERMAID';\n    renderData(startCode, 'Flowchart');\n};\n</script>\n</body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        128,
+        720
+      ],
+      "id": "96cb718c-7aff-4ed8-b616-f2a4e5760789",
+      "name": "Respond to Webhook (HTML)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "HTTP (Whisper)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP (Vision)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook (HTML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP (Whisper)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP (Vision)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "62f6efcc-032c-46bc-b180-b63fcac34c5d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9abe73e94b26d401ea5d0393e56891a39105de949abf069277c82af80791d842"
+  },
+  "id": "59KcwmeNmnR2sYL0",
+  "tags": []
+}
