@@ -34,7 +34,7 @@ n8n-based tool for generating architecture and business process diagrams from te
 
 ## 📁 Files
 
-- [`download_workflow.json`](download_workflow.json) — n8n workflow export (import directly into your n8n instance)
+- [`workflow.json`](workflow.json) — n8n workflow export (import directly into your n8n instance)
 
 ## ⚙️ Setup Requirements
 
